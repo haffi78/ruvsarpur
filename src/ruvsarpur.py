@@ -1419,13 +1419,29 @@ def searchForItemsInTvSchedule(args, schedule):
       if( 'pid' in schedule_item and schedule_item['pid'] in args.pid):
         candidate_to_add = schedule_item
     elif( args.find is not None ):
-      if( 'title' in schedule_item and fuzz.partial_ratio( args.find.lower(), createShowTitle(schedule_item, args.originaltitle).lower() ) > 85 ):
+      def _norm_find_text(v):
+        if v is None:
+          return None
+        return ' '.join(str(v).split()).strip().lower()
+
+      find_text = _norm_find_text(args.find)
+
+      show_title = _norm_find_text(createShowTitle(schedule_item, args.originaltitle)) if ('title' in schedule_item) else None
+      title = _norm_find_text(schedule_item['title']) if ('title' in schedule_item and schedule_item['title'] is not None) else None
+      series_title = _norm_find_text(schedule_item['series_title']) if ('series_title' in schedule_item and schedule_item['series_title'] is not None) else None
+      original_title = _norm_find_text(schedule_item['original-title']) if ('original-title' in schedule_item and schedule_item['original-title'] is not None) else None
+
+      # Prefer exact matches on actual title fields (prevents broad matches like 'Jörðin')
+      if series_title == find_text:
         candidate_to_add = schedule_item
-      elif( 'title' in schedule_item and fuzz.partial_ratio( args.find.lower(), schedule_item['title'].lower() ) > 85 ):
+      elif title == find_text:
         candidate_to_add = schedule_item
-      elif( 'series_title' in schedule_item and fuzz.partial_ratio( args.find.lower(), schedule_item['series_title'].lower() ) > 85 ):
+      elif original_title == find_text:
         candidate_to_add = schedule_item
-      elif( 'original-title' in schedule_item and not schedule_item['original-title'] is None and fuzz.partial_ratio( args.find.lower(), schedule_item['original-title'].lower() ) > 85 ):
+      # Fallback for episode-formatted titles like 'Series Name (24 af 26)'
+      elif show_title == find_text:
+        candidate_to_add = schedule_item
+      elif show_title is not None and show_title.startswith(find_text + ' ('):
         candidate_to_add = schedule_item
     else:
       # By default if there is no filtering then we simply list everything in the schedule

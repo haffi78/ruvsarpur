@@ -1470,8 +1470,18 @@ def searchForItemsInTvSchedule(args, schedule):
 
 def getVodSearchResults(search_query):
 
-  search_graphdata = '?operationName=getSearch&variables={"type":"tv","text":"'+str(search_query)+'"}&extensions={"persistedQuery":{"version":1,"sha256Hash":"823f9e99e09dadeca8896ea9f29374429e6fc3c4be2d2c2a93e7ce6dc65eec41"}}'
-  data = requestsVodDataRetrieveWithRetries(search_graphdata)
+  search_graphdata = {
+    'query': 'query getSearch($type: SearchQueryType!, $text: String!) { Search(type: $type, text: $text) { id episodeId title slug image description } }',
+    'variables': {'type': 'tv', 'text': str(search_query)}
+  }
+  try:
+    request = __create_retry_session().post(
+      RUV_CATEGORY_GRAPHQL_URL,
+      json=search_graphdata,
+      timeout=30)
+    data = request.json() if request.status_code == 200 else None
+  except Exception:
+    data = None
 
   if data is None or len(data) < 1 or not 'data' in data or data['data'] is None or not 'Search' in data['data'] or data['data']['Search'] is None or len(data['data']['Search']) < 1:
     print("Error: Could not retrieve search results from GraphQL url, unable to search for VOD details for query: "+str(search_query))
